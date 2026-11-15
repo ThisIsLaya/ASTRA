@@ -1,5 +1,4 @@
-# 🚀 ASTRA — Spacecraft Telemetry & Emergency Monitoring System
-
+# 🚀 ASTRA — Autonomous Spacecraft Telemetry & Risk Assistant
 **What if a spacecraft developed a problem millions of kilometres away from Earth? How would mission operators know something was wrong?**
 
 That's the idea behind **ASTRA** — a Python-based spacecraft monitoring prototype designed to simulate mission conditions, identify potential system failures, and help operators understand what needs attention.
