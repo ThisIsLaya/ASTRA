@@ -9,7 +9,7 @@ def validate_telemetry(data):
     if not isinstance(data, dict):
         return {"is_valid": False, "errors": ["Telemetry payload must be a dictionary."]}
 
-    # 2. Check required fields
+    # 2. Check required fields and data types
     required_fields = {
         "battery": (int, float),
         "oxygen": (int, float),
@@ -22,7 +22,6 @@ def validate_telemetry(data):
         if field not in data or data[field] is None:
             errors.append(f"Missing or null field: '{field}'")
         elif field == "communication" and not isinstance(data[field], bool):
-            # In Python bool is a subclass of int, so check bool explicitly
             errors.append(f"Invalid type for '{field}': expected bool.")
         elif field != "communication" and isinstance(data[field], bool):
             errors.append(f"Invalid type for '{field}': cannot be bool.")
@@ -43,6 +42,10 @@ def validate_telemetry(data):
     if not data["timestamp"].strip():
         errors.append("Timestamp cannot be empty.")
 
+    return {
+        "is_valid": len(errors) == 0,
+        "errors": errors
+    }
     return {
         "is_valid": len(errors) == 0,
         "errors": errors
