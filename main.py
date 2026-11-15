@@ -38,8 +38,6 @@ from simulator import generate_telemetry, reset_simulator
 from detector import detect_anomalies
 from alerts import generate_alerts
 
-# Page configuration and browser icon
-
 # Custom CSS styling for a cleaner look
 st.markdown("""
     <style>
@@ -138,10 +136,10 @@ st.subheader("🚨 Active Alerts & Recommended Actions")
 if alerts:
     for alert in alerts:
         with st.container(border=True):
-            sev = alert["severity"]
-            sys_name = alert["system"]
-            msg = alert["message"]
-            rec = alert["recommendation"]
+            sev = alert.get("severity", "WARNING")
+            sys_name = alert.get("system", "System")
+            msg = alert.get("message", "Unknown anomaly detected")
+            rec = alert.get("recommendation", "Check subsystem status.")
             
             if sev == "CRITICAL":
                 st.markdown(f"### 🔴 [CRITICAL] {sys_name}")
@@ -150,7 +148,10 @@ if alerts:
                 
             st.write(f"**Issue:** {msg}")
             st.info(f"💡 **Recommended Action:** {rec}")
-            st.caption(f"Logged at: {alert['timestamp']}")
+            
+            # Safe timestamp retrieval to prevent KeyError
+            alert_time = alert.get("timestamp", data.get("timestamp", "N/A"))
+            st.caption(f"Logged at: {alert_time}")
 else:
     st.info("✨ No active alerts. All telemetry streams are stable and healthy.")
 
