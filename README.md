@@ -8,19 +8,19 @@
 
 The project is divided into four modular components connected via standardized Python dictionary contracts:
 
-### 1️⃣ Telemetry Simulator (`simulator.py`) — *Person 1*
+### 1️⃣ Telemetry Simulator (`simulator.py`) 
 * Generates dynamic spacecraft sensor readings (`battery`, `oxygen`, `temperature`, `communication`, `timestamp`).
 * Simulates natural fluctuations as well as critical mission scenarios (`normal`, `battery_emergency`, `oxygen_anomaly`, `temperature_anomaly`, `communication_blackout`).
 
-### 2️⃣ Data Validation & Anomaly Detection (`validator.py`, `detector.py`) — *Person 2*
+### 2️⃣ Data Validation & Anomaly Detection (`validator.py`, `detector.py`) 
 * **`validator.py`**: Verifies data integrity by checking required fields, strict data types, missing/null values, and physical sensor bounds.
 * **`detector.py`**: Evaluates validated telemetry against safety thresholds and classifies each subsystem (`battery`, `oxygen`, `temperature`, `communication`) as **`NORMAL`**, **`WARNING`**, or **`CRITICAL`**.
 
-### 3️⃣ Alerts & Recommendations (`alerts.py`) — *Person 3*
+### 3️⃣ Alerts & Recommendations (`alerts.py`) 
 * Translates detected anomalies into structured, human-readable alerts.
 * Prioritizes **`CRITICAL`** alerts above **`WARNING`** alerts and attaches targeted corrective recommendations.
 
-### 4️⃣ Mission Control Dashboard (`main.py`) — *Person 4*
+### 4️⃣ Mission Control Dashboard (`main.py`) 
 * Provides an interactive Streamlit web interface displaying live metrics, overall mission status banners, and prioritized alerts.
 * Uses `st.session_state` to support step-by-step telemetry updates, scenario switching, spacecraft resets, and real-time trend history charts.
 
