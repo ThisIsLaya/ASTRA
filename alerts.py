@@ -1,88 +1,55 @@
 
-from datetime import datetime
-
-
 def generate_alerts(results):
-
     alerts = []
 
     recommendations = {
-        "BATTERY": {
-            "WARNING": "Monitor battery usage and reduce non-essential power consumption.",
-            "CRITICAL": "Prioritize essential systems and investigate the power supply immediately."
-        },
-        "OXYGEN": {
-            "WARNING": "Monitor oxygen levels and inspect the life-support system.",
-            "CRITICAL": "Check the oxygen supply immediately and follow mission emergency procedures."
-        },
-        "TEMPERATURE": {
-            "WARNING": "Monitor cabin temperature and check the thermal control system.",
-            "CRITICAL": "Investigate the thermal control system and follow mission safety procedures."
-        },
-        "COMMUNICATION": {
-            "WARNING": "Monitor signal stability and check communication equipment.",
-            "CRITICAL": "Check communication equipment and attempt to restore contact with mission control."
-        },
-        "DATA": {
-            "WARNING": "Check telemetry timestamps and request updated sensor readings.",
-            "CRITICAL": "Verify sensor data integrity before making mission decisions."
-        }
+        "BATTERY": "Check the battery and reduce power usage.",
+        "OXYGEN": "Check the oxygen supply.",
+        "TEMPERATURE": "Check the temperature control system.",
+        "COMMUNICATION": "Check the communication system.",
+        "DATA": "Check the sensor data."
     }
 
-    for anomaly in results.get("anomalies", []):
+    for anomaly in results["anomalies"]:
         system = anomaly["system"]
         severity = anomaly["severity"]
         message = anomaly["message"]
 
-        recommendation = recommendations.get(system, {}).get(
-            severity,
-            "Review the affected system and investigate the anomaly."
-        )
-
-        alerts.append({
+        alert = {
             "system": system,
             "severity": severity,
             "message": message,
-            "recommendation": recommendation,
-            "timestamp": datetime.now().isoformat(timespec="seconds")
-        })
+            "recommendation": recommendations.get(
+                system, "Check the system."
+            )
+        }
 
-    priority = {
-        "CRITICAL": 0,
-        "WARNING": 1,
-        "INFORMATIONAL": 2
-    }
+        alerts.append(alert)
 
+    # Put critical alerts first
     alerts.sort(
-        key=lambda alert: priority.get(alert["severity"], 3)
+        key=lambda alert: 0 if alert["severity"] == "CRITICAL" else 1
     )
 
     return alerts
 
 
+# Testing
 if __name__ == "__main__":
-
-    # Simulated output from detector.py
     test_results = {
         "overall_status": "CRITICAL",
         "anomalies": [
             {
                 "system": "BATTERY",
                 "severity": "CRITICAL",
-                "message": "Critical battery level: 15%"
+                "message": "Battery is too low"
             },
             {
                 "system": "TEMPERATURE",
                 "severity": "WARNING",
-                "message": "Unusual cabin temperature: 35°C"
+                "message": "Temperature is too high"
             }
-        ],
-        "validation": {
-            "is_valid": True,
-            "errors": [],
-            "warnings": []
-        }
+        ]
     }
 
-    for alert in generate_alerts(test_results):
-        print(alert)
+    print(generate_alerts(test_results))
