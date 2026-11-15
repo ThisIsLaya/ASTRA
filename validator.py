@@ -1,80 +1,96 @@
 
-from datetime import datetime, timezone
+from datetime import datetime
+
+# Expected ranges
+VALID_RANGES = {
+    "battery": (0, 100),
+    "oxygen": (0, 100),
+    "temperature": (-50, 100)
+}
+
+MAX_DATA_AGE_SECONDS = 30
 
 
 def validate_telemetry(data):
+    """
+    Validate spacecraft telemetry.
+
+    Checks:
+    - Missing values
+    - Invalid data types
+    - Values outside acceptable ranges
+    - Invalid or outdated timestamps
+    - Communication status
+    """
 
     errors = []
+    warnings = []
 
-    # 1. Check for missing fields
     required_fields = [
-        "timestamp",
         "battery",
         "oxygen",
         "temperature",
-        "communication"
+        "communication",
+        "timestamp"
     ]
 
-    for field in required_fields:
-        if field not in data or data[field] is None:
-            errors.append(f"Missing field: {field}")
-
-    # Stop if required fields are missing
-    if errors:
+    # Check if data is a dictionary
+    if not isinstance(data, dict):
         return {
-            "valid": False,
-            "errors": errors
+            "is_valid": False,
+            "errors": ["Telemetry data must be a dictionary."],
+            "warnings": []
         }
 
-    # 2. Check numeric data types
-    numeric_fields = ["battery", "oxygen", "temperature"]
+    # Check missing fields
+    for field in required_fields:
+        if field not in data or data[field] is None:
+            errors.append(f"Missing or empty field: {field}")
 
-    for field in numeric_fields:
+    # Stop if required data is missing
+    if errors:
+        return {
+            "is_valid": False,
+            "errors": errors,
+            "warnings": warnings
+        }
+
+    # Validate numerical readings
+    for field, (minimum, maximum) in VALID_RANGES.items():
+
         value = data[field]
 
+        # Boolean values should not count as numbers
         if isinstance(value, bool) or not isinstance(value, (int, float)):
-            errors.append(f"{field} must be a number")
+            errors.append(f"{field} must be a number.")
+            continue
 
-    # 3. Check value ranges
-    if not errors:
+        if not minimum <= value <= maximum:
+            errors.append(
+                f"{field} is outside the valid range ({minimum}-{maximum})."
+            )
 
-        if not 0 <= data["battery"] <= 100:
-            errors.append("Battery must be between 0 and 100")
+    # Validate communication
+    if not isinstance(data["communication"], bool):
+        errors.append("Communication must be True or False.")
 
-        if not 0 <= data["oxygen"] <= 100:
-            errors.append("Oxygen must be between 0 and 100")
-
-        if not -100 <= data["temperature"] <= 100:
-            errors.append("Temperature is outside the simulation range")
-
-    # 4. Check communication status
-    if data["communication"] not in ["ONLINE", "OFFLINE"]:
-        errors.append("Invalid communication status")
-
-    # 5. Check timestamp
+    # Validate timestamp
     try:
-        timestamp = datetime.fromisoformat(
-            data["timestamp"].replace("Z", "+00:00")
-        )
+        timestamp = datetime.fromisoformat(data["timestamp"])
 
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        age = (datetime.now() - timestamp).total_seconds()
 
-        age = (
-            datetime.now(timezone.utc) - timestamp
-        ).total_seconds()
+        if age < -5:
+            errors.append("Timestamp is in the future.")
 
-        if age > 120:
-            errors.append("Telemetry data is outdated")
+        elif age > MAX_DATA_AGE_SECONDS:
+            warnings.append("Telemetry data is outdated.")
 
-        if age < -10:
-            errors.append("Timestamp is in the future")
+    except (ValueError, TypeError):
+        errors.append("Invalid timestamp format.")
 
-    except (ValueError, TypeError, AttributeError):
-        errors.append("Invalid timestamp format")
-
-    # 6. Return result
     return {
-        "valid": len(errors) == 0,
-        "errors": errors
+        "is_valid": len(errors) == 0,
+        "errors": errors,
+        "warnings": warnings
     }
