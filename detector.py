@@ -1,113 +1,89 @@
-
 from validator import validate_telemetry
 
 
 def detect_anomalies(data):
     """
-    Detect spacecraft anomalies.
-
-    Classifies readings as:
-    NORMAL, WARNING or CRITICAL.
+    Validate telemetry and classify each subsystem as NORMAL, WARNING, or CRITICAL.
     """
-
     validation = validate_telemetry(data)
 
-    anomalies = []
-
-    # Invalid telemetry
+    # If telemetry data itself is invalid/corrupted, immediately flag CRITICAL
     if not validation["is_valid"]:
         return {
             "overall_status": "CRITICAL",
-            "anomalies": [
-                {
-                    "system": "DATA",
-                    "severity": "CRITICAL",
-                    "message": error
+            "is_valid": False,
+            "validation_errors": validation["errors"],
+            "systems": {
+                "validation": {
+                    "status": "CRITICAL",
+                    "value": None,
+                    "message": "; ".join(validation["errors"])
                 }
-                for error in validation["errors"]
-            ],
-            "validation": validation
+            },
+            "timestamp": data.get("timestamp", "UNKNOWN") if isinstance(data, dict) else "UNKNOWN"
         }
 
-    # Battery detection
+    systems = {}
+
+    # 1. Battery Detection
     battery = data["battery"]
+    if battery <= 20:
+        systems["battery"] = {"status": "CRITICAL", "value": battery, "message": f"Critical battery depletion ({battery}%)"}
+    elif battery <= 40:
+        systems["battery"] = {"status": "WARNING", "value": battery, "message": f"Low battery level ({battery}%)"}
+    else:
+        systems["battery"] = {"status": "NORMAL", "value": battery, "message": "Battery nominal"}
 
-    if battery < 30:
-        anomalies.append({
-            "system": "BATTERY",
-            "severity": "CRITICAL",
-            "message": f"Critical battery level: {battery}%"
-        })
-
-    elif battery <= 70:
-        anomalies.append({
-            "system": "BATTERY",
-            "severity": "WARNING",
-            "message": f"Low battery level: {battery}%"
-        })
-
-    # Oxygen detection
+    # 2. Oxygen Detection
     oxygen = data["oxygen"]
+    if oxygen <= 60:
+        systems["oxygen"] = {"status": "CRITICAL", "value": oxygen, "message": f"Critical oxygen drop ({oxygen}%)"}
+    elif oxygen <= 80:
+        systems["oxygen"] = {"status": "WARNING", "value": oxygen, "message": f"Reduced oxygen level ({oxygen}%)"}
+    else:
+        systems["oxygen"] = {"status": "NORMAL", "value": oxygen, "message": "Oxygen nominal"}
 
-    if oxygen < 50:
-        anomalies.append({
-            "system": "OXYGEN",
-            "severity": "CRITICAL",
-            "message": f"Critical oxygen level: {oxygen}%"
-        })
+    # 3. Cabin Temperature Detection
+    temp = data["temperature"]
+    if temp >= 35 or temp <= 5:
+        systems["temperature"] = {"status": "CRITICAL", "value": temp, "message": f"Extreme cabin temperature ({temp} °C)"}
+    elif temp >= 29 or temp <= 15:
+        systems["temperature"] = {"status": "WARNING", "value": temp, "message": f"Abnormal cabin temperature ({temp} °C)"}
+    else:
+        systems["temperature"] = {"status": "NORMAL", "value": temp, "message": "Cabin temperature nominal"}
 
-    elif oxygen <= 70:
-        anomalies.append({
-            "system": "OXYGEN",
-            "severity": "WARNING",
-            "message": f"Low oxygen level: {oxygen}%"
-        })
+    # 4. Communication Link Detection
+    comm = data["communication"]
+    if not comm:
+        systems["communication"] = {"status": "CRITICAL", "value": comm, "message": "Communication blackout — link lost"}
+    else:
+        systems["communication"] = {"status": "NORMAL", "value": comm, "message": "Communication link active"}
 
-    # Temperature detection
-    temperature = data["temperature"]
-
-    if temperature < 10 or temperature > 40:
-        anomalies.append({
-            "system": "TEMPERATURE",
-            "severity": "CRITICAL",
-            "message": f"Dangerous cabin temperature: {temperature}°C"
-        })
-
-    elif temperature < 18 or temperature > 30:
-        anomalies.append({
-            "system": "TEMPERATURE",
-            "severity": "WARNING",
-            "message": f"Unusual cabin temperature: {temperature}°C"
-        })
-
-    # Communication detection
-    if not data["communication"]:
-        anomalies.append({
-            "system": "COMMUNICATION",
-            "severity": "CRITICAL",
-            "message": "Communication with spacecraft has been lost."
-        })
-
-    # Outdated telemetry warning
-    for warning in validation["warnings"]:
-        anomalies.append({
-            "system": "DATA",
-            "severity": "WARNING",
-            "message": warning
-        })
-
-    # Determine overall status
-    if any(a["severity"] == "CRITICAL" for a in anomalies):
+    # Determine overall mission status
+    statuses = [info["status"] for info in systems.values()]
+    if "CRITICAL" in statuses:
         overall_status = "CRITICAL"
-
-    elif any(a["severity"] == "WARNING" for a in anomalies):
+    elif "WARNING" in statuses:
         overall_status = "WARNING"
-
     else:
         overall_status = "NORMAL"
 
     return {
         "overall_status": overall_status,
-        "anomalies": anomalies,
-        "validation": validation
+        "is_valid": True,
+        "validation_errors": [],
+        "systems": systems,
+        "timestamp": data["timestamp"]
     }
+
+
+# Quick self-test for Person 2 checklist (missing, invalid, warning, critical)
+if __name__ == "__main__":
+    print("--- Test 1: Normal Data ---")
+    print(detect_anomalies({"battery": 85, "oxygen": 95, "temperature": 22, "communication": True, "timestamp": "2026-11-15T12:00:00"}))
+
+    print("\n--- Test 2: Warning & Critical Data ---")
+    print(detect_anomalies({"battery": 35, "oxygen": 55, "temperature": 22, "communication": False, "timestamp": "2026-11-15T12:01:00"}))
+
+    print("\n--- Test 3: Missing / Invalid Data ---")
+    print(detect_anomalies({"battery": 150, "oxygen": None, "temperature": "hot"}))
