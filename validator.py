@@ -1,76 +1,65 @@
+def validate_data(data):
+    """Check if the telemetry data contains required keys and valid value ranges."""
+    if not isinstance(data, dict):
+        return False
+    
+    required_keys = ["battery", "oxygen", "temperature", "communication"]
+    for key in required_keys:
+        if key not in data:
+            return False
+    
+    try:
+        battery = float(data["battery"])
+        oxygen = float(data["oxygen"])
+        float(data["temperature"])
+        
+        if not (0 <= battery <= 100):
+            return False
+        if not (0 <= oxygen <= 100):
+            return False
+    except (ValueError, TypeError):
+        return False
 
-import random
-from datetime import datetime
+    return True
 
-# Starting spacecraft readings
-def reset_simulator():
-    global spacecraft, active_scenario
 
-    spacecraft = {
-        "battery": 100,
-        "oxygen": 95,
-        "temperature": 22,
-        "communication": True,
-        "timestamp": datetime.now().isoformat()
+def validate_telemetry(reading):
+    """Validate telemetry and return a dictionary with 'valid' status and error messages."""
+    errors = []
+    
+    if not isinstance(reading, dict):
+        return {"valid": False, "errors": ["Data must be a dictionary"]}
+    
+    required_keys = ["battery", "oxygen", "temperature", "communication"]
+    for key in required_keys:
+        if key not in reading:
+            errors.append(f"Missing required key: {key}")
+
+    if not errors:
+        try:
+            battery = float(reading["battery"])
+            if not (0 <= battery <= 100):
+                errors.append("Battery must be between 0 and 100")
+        except (ValueError, TypeError):
+            errors.append("Invalid battery value")
+
+        try:
+            oxygen = float(reading["oxygen"])
+            if not (0 <= oxygen <= 100):
+                errors.append("Oxygen must be between 0 and 100")
+        except (ValueError, TypeError):
+            errors.append("Invalid oxygen value")
+
+        try:
+            float(reading["temperature"])
+        except (ValueError, TypeError):
+            errors.append("Invalid temperature value")
+
+        comm = reading.get("communication")
+        if comm not in [True, False, "ONLINE", "OFFLINE"]:
+            errors.append("Invalid communication status")
+
+    return {
+        "valid": len(errors) == 0,
+        "errors": errors
     }
-
-    active_scenario = None
-
-
-reset_simulator()
-
-
-def generate_telemetry(scenario="normal"):
-    global active_scenario
-
-    scenarios = [
-        "normal",
-        "battery_failure",
-        "oxygen_problem",
-        "temperature_problem",
-        "communication_loss"
-    ]
-
-    if scenario not in scenarios:
-        raise ValueError("Invalid scenario")
-
-    # Start fresh when switching to another scenario,
-    # except when communication is lost.
-    if scenario != active_scenario:
-        if scenario != "communication_loss":
-            reset_simulator()
-
-        active_scenario = scenario
-
-    # Communication loss: keep the last readings
-    if scenario == "communication_loss":
-        spacecraft["communication"] = False
-        return spacecraft.copy()
-
-    spacecraft["communication"] = True
-
-    if scenario == "normal":
-        spacecraft["battery"] -= random.randint(0, 1)
-        spacecraft["oxygen"] -= random.randint(0, 1)
-        spacecraft["temperature"] += random.choice([-1, 1])
-
-        spacecraft["temperature"] = max(
-            18, min(26, spacecraft["temperature"])
-        )
-
-    elif scenario == "battery_failure":
-        spacecraft["battery"] = max(
-            0, spacecraft["battery"] - 10
-        )
-
-    elif scenario == "oxygen_problem":
-        spacecraft["oxygen"] = max(
-            0, spacecraft["oxygen"] - 8
-        )
-
-    elif scenario == "temperature_problem":
-        spacecraft["temperature"] = 38
-
-    spacecraft["timestamp"] = datetime.now().isoformat()
-
-    return spacecraft.copy()
