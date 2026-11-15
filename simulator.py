@@ -1,100 +1,145 @@
+
 import random
 from datetime import datetime
 
-# Initial spacecraft readings
+
+# Starting spacecraft readings
 INITIAL_STATE = {
-    "battery": 90,
+    "battery": 100,
     "oxygen": 95,
     "temperature": 22,
     "communication": True,
     "timestamp": None
 }
 
-# Current simulator state
+# Current spacecraft condition
 spacecraft = INITIAL_STATE.copy()
+
+# Keeps track of the selected scenario
 active_scenario = None
 
 
 def reset_simulator():
-    """Reset the spacecraft to its initial state."""
+    """Reset all spacecraft readings to their starting values."""
+
     global spacecraft, active_scenario
+
     spacecraft = INITIAL_STATE.copy()
     active_scenario = None
 
 
 def generate_telemetry(scenario="normal"):
     """
-    Generate simulated spacecraft telemetry with natural up-and-down fluctuations.
+    Generate spacecraft telemetry based on the selected scenario.
+
+    Available scenarios:
+    normal
+    battery_failure
+    oxygen_problem
+    temperature_problem
+    communication_loss
     """
+
     global spacecraft, active_scenario
 
     valid_scenarios = [
         "normal",
-        "battery_emergency",
-        "oxygen_anomaly",
-        "temperature_anomaly",
-        "communication_blackout"
+        "battery_failure",
+        "oxygen_problem",
+        "temperature_problem",
+        "communication_loss"
     ]
 
+    # Check whether the scenario name is valid
     if scenario not in valid_scenarios:
-        raise ValueError(f"Unknown scenario: {scenario}")
+        raise ValueError("Invalid scenario selected.")
 
-    # Start a fresh simulation when the scenario changes
+    # Start a fresh simulation when switching scenarios,
+    # except for communication loss, which preserves
+    # the last successfully received readings.
     if scenario != active_scenario:
-        reset_simulator()
+
+        if scenario != "communication_loss":
+            reset_simulator()
+
         active_scenario = scenario
 
-    # Normal spacecraft operation: natural fluctuations (up and down)
+    # Normal spacecraft operation
     if scenario == "normal":
-        # Battery can go down or up slightly (solar panel recharge)
+
         spacecraft["battery"] = max(
-            20, min(100, spacecraft["battery"] + random.choice([-2, -1, 0, 1, 2]))
+            0, spacecraft["battery"] - random.randint(0, 1)
         )
 
-        # Oxygen fluctuates slightly
         spacecraft["oxygen"] = max(
-            60, min(100, spacecraft["oxygen"] + random.choice([-1, 0, 1]))
+            0, spacecraft["oxygen"] - random.randint(0, 1)
         )
 
-        # Temperature fluctuates around safe range
-        spacecraft["temperature"] = max(
-            18, min(28, spacecraft["temperature"] + random.choice([-1, 0, 1]))
-        )
+        # Temperature changes slightly with each update
+        spacecraft["temperature"] += random.choice([-1, 1])
 
+        # Communication is available
         spacecraft["communication"] = True
 
-    # Battery emergency: mostly drops, but can occasionally fluctuate slightly
-    elif scenario == "battery_emergency":
+    # Battery emergency
+    elif scenario == "battery_failure":
+
         spacecraft["battery"] = max(
-            0, min(100, spacecraft["battery"] + random.choice([-5, -3, 1]))
+            0, spacecraft["battery"] - random.randint(8, 12)
         )
-        spacecraft["oxygen"] = max(50, min(100, spacecraft["oxygen"] + random.choice([-1, 0, 1])))
-        spacecraft["temperature"] += random.choice([-1, 0, 1])
 
-    # Oxygen anomaly: fluctuates around low/critical levels
-    elif scenario == "oxygen_anomaly":
+    # Oxygen problem
+    elif scenario == "oxygen_problem":
+
         spacecraft["oxygen"] = max(
-            30, min(65, spacecraft["oxygen"] + random.choice([-2, -1, 1, 2]))
+            0, spacecraft["oxygen"] - random.randint(5, 10)
         )
-        spacecraft["battery"] = max(0, min(100, spacecraft["battery"] + random.choice([-1, 0, 1])))
 
-    # Temperature anomaly: fluctuates in high/dangerous ranges
-    elif scenario == "temperature_anomaly":
-        spacecraft["temperature"] = max(
-            33, min(45, spacecraft["temperature"] + random.choice([-2, -1, 1, 2]))
-        )
-        spacecraft["battery"] = max(0, min(100, spacecraft["battery"] + random.choice([-1, 0, 1])))
+    # Temperature problem
+    elif scenario == "temperature_problem":
 
-    # Communication blackout
-    elif scenario == "communication_blackout":
+        spacecraft["temperature"] = 38
+
+    # Communication loss
+    elif scenario == "communication_loss":
+
         spacecraft["communication"] = False
-        # Readings can still drift during blackout
-        spacecraft["battery"] = max(0, min(100, spacecraft["battery"] + random.choice([-1, 0, 1])))
+
+        # If this is the first reading, record the last
+        # known timestamp before the communication loss.
+        if spacecraft["timestamp"] is None:
+            spacecraft["timestamp"] = datetime.now().isoformat()
+
+        # No new telemetry arrives, so return the old readings.
         return spacecraft.copy()
 
-    # Record the time of the latest successful reading
-    spacecraft["timestamp"] = datetime.now().isoformat(
-        timespec="seconds"
-    )
+    # Update timestamp after every successful reading
+    spacecraft["timestamp"] = datetime.now().isoformat()
 
+    # Return a copy so other files cannot accidentally
+    # modify the simulator's internal spacecraft state.
     return spacecraft.copy()
+
+
+# Test the simulator independently
+if __name__ == "__main__":
+
+    scenarios = [
+        "normal",
+        "battery_failure",
+        "oxygen_problem",
+        "temperature_problem",
+        "communication_loss"
+    ]
+
+    for scenario in scenarios:
+
+        reset_simulator()
+
+        print("\nSCENARIO:", scenario.upper())
+
+        for i in range(3):
+
+            data = generate_telemetry(scenario)
+
+            print("Reading", i + 1, ":", data)
