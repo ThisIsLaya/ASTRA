@@ -1,55 +1,26 @@
 
-def generate_alerts(results):
+def generate_alerts(status):
+
     alerts = []
 
     recommendations = {
-        "BATTERY": "Check the battery and reduce power usage.",
-        "OXYGEN": "Check the oxygen supply.",
-        "TEMPERATURE": "Check the temperature control system.",
-        "COMMUNICATION": "Check the communication system.",
-        "DATA": "Check the sensor data."
+        "battery": "Check the spacecraft power system.",
+        "oxygen": "Check the oxygen supply.",
+        "temperature": "Check the temperature control system.",
+        "communication": "Check the communication connection."
     }
 
-    for anomaly in results["anomalies"]:
-        system = anomaly["system"]
-        severity = anomaly["severity"]
-        message = anomaly["message"]
+    # Show critical problems first
+    for level in ["CRITICAL", "WARNING"]:
 
-        alert = {
-            "system": system,
-            "severity": severity,
-            "message": message,
-            "recommendation": recommendations.get(
-                system, "Check the system."
-            )
-        }
+        for system, condition in status.items():
 
-        alerts.append(alert)
+            if condition == level:
+                message = (
+                    f"{level}: {system.capitalize()} problem. "
+                    f"{recommendations[system]}"
+                )
 
-    # Put critical alerts first
-    alerts.sort(
-        key=lambda alert: 0 if alert["severity"] == "CRITICAL" else 1
-    )
+                alerts.append(message)
 
     return alerts
-
-
-# Testing
-if __name__ == "__main__":
-    test_results = {
-        "overall_status": "CRITICAL",
-        "anomalies": [
-            {
-                "system": "BATTERY",
-                "severity": "CRITICAL",
-                "message": "Battery is too low"
-            },
-            {
-                "system": "TEMPERATURE",
-                "severity": "WARNING",
-                "message": "Temperature is too high"
-            }
-        ]
-    }
-
-    print(generate_alerts(test_results))
