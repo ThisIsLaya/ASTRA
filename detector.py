@@ -3,7 +3,8 @@ from validator import validate_telemetry
 
 def detect_anomalies(data):
     """
-    Validate telemetry and classify each subsystem as NORMAL, WARNING, or CRITICAL.
+    Validate telemetry, classify each subsystem, and extract anomalies 
+    for the alerts module.
     """
     validation = validate_telemetry(data)
 
@@ -20,6 +21,14 @@ def detect_anomalies(data):
                     "message": "; ".join(validation["errors"])
                 }
             },
+            "anomalies": [
+                {
+                    "system": "Validation",
+                    "severity": "CRITICAL",
+                    "message": "; ".join(validation["errors"]),
+                    "value": None
+                }
+            ],
             "timestamp": data.get("timestamp", "UNKNOWN") if isinstance(data, dict) else "UNKNOWN"
         }
 
@@ -59,7 +68,7 @@ def detect_anomalies(data):
     else:
         systems["communication"] = {"status": "NORMAL", "value": comm, "message": "Communication link active"}
 
-    # Determine overall mission status
+    # Determine overall mission status and collect anomalies
     statuses = [info["status"] for info in systems.values()]
     if "CRITICAL" in statuses:
         overall_status = "CRITICAL"
@@ -68,22 +77,22 @@ def detect_anomalies(data):
     else:
         overall_status = "NORMAL"
 
+    # Build anomalies list for alerts.py
+    anomalies = []
+    for sys_name, info in systems.items():
+        if info["status"] != "NORMAL":
+            anomalies.append({
+                "system": sys_name.capitalize(),
+                "severity": info["status"],
+                "message": info["message"],
+                "value": info["value"]
+            })
+
     return {
         "overall_status": overall_status,
         "is_valid": True,
         "validation_errors": [],
         "systems": systems,
+        "anomalies": anomalies,  # Fixed: Added this key for alerts.py
         "timestamp": data["timestamp"]
     }
-
-
-# Quick self-test for Person 2 checklist (missing, invalid, warning, critical)
-if __name__ == "__main__":
-    print("--- Test 1: Normal Data ---")
-    print(detect_anomalies({"battery": 85, "oxygen": 95, "temperature": 22, "communication": True, "timestamp": "2026-11-15T12:00:00"}))
-
-    print("\n--- Test 2: Warning & Critical Data ---")
-    print(detect_anomalies({"battery": 35, "oxygen": 55, "temperature": 22, "communication": False, "timestamp": "2026-11-15T12:01:00"}))
-
-    print("\n--- Test 3: Missing / Invalid Data ---")
-    print(detect_anomalies({"battery": 150, "oxygen": None, "temperature": "hot"}))
